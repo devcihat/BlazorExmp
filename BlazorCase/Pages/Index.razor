@@ -1,0 +1,207 @@
+﻿@page "/"
+@using MatBlazor;
+
+<h1>MatBlazor</h1>
+
+<MatButton Outlined="true" @onclick="@(e => OpenDialog(false))">Add Employee</MatButton>
+
+<hr />
+
+<MatTable Items="@employees" Class="mat-elevation-z5"
+     AllowSelection="true"
+     SelectionChanged="SelectionChangedEvent"     
+     FilterByColumnName="Name">
+    <MatTableHeader>
+        <th>Id</th>
+        <th>Name</th>
+        <th>Gender</th>
+        <th>Job Exp.</th>
+        <th>Joining Date</th>
+        <th>Action</th>
+    </MatTableHeader>
+
+    <MatTableRow>
+        <td>@context.EmployeeId</td>
+        <td>@context.Name</td>
+        <td>@context.Gender</td>
+        <td>@context.YearOfExperience</td>
+        <td>@context.JoiningDate.ToString("dd-MMM-yyyy")</td>
+        <td>
+            <MatButton Raised="true" @onclick="@(e => OpenDialog(true))" Icon="edit" title="Edit Employee"></MatButton>
+            <MatButton Raised="true" @onclick="DeleteEmployee" Icon="restore_form_trash" title="Delete Employee"></MatButton>
+        </td>
+    </MatTableRow>
+    
+</MatTable>
+
+<MatDialog @bind-IsOpen="@dialogIsOpen">
+    <MatDialogTitle> Add / Edit Employee </MatDialogTitle>
+    <MatDialogContent>
+        <MatTextField Label="Employee Name" @bind-Value="@employee.Name"></MatTextField>
+
+        <MatRadioGroup @bind-Value="@employee.Gender" TValue="string">
+            <MatRadioButton Value="@("Male")" TValue="string">Male</MatRadioButton>
+            <MatRadioButton Value="@("Female")" Label="Female" TValue="string"></MatRadioButton>
+        </MatRadioGroup>
+
+        <MatDatePicker Label="Joining Date" @bind-Value="@employee.JoiningDate"></MatDatePicker>
+
+        <MatNumericUpDownField Label="Job Exp."
+                               @bind-Value="@employee.YearOfExperience"
+                               DecimalPlaces="0"
+                               Minimum="0"
+                               Maximum="100">
+    </MatNumericUpDownField>
+    </MatDialogContent>
+
+    <MatDialogContent>
+        <MatButton OnClick="okClick">Add</MatButton>
+        <MatButton OnClick="CloseDialog">Close</MatButton>
+    </MatDialogContent>
+
+</MatDialog>
+
+<MatSnackbar @bind-IsOpen="@snackBar" Leading="true">
+    <MatSnackbarContent>Employee Deleted</MatSnackbarContent>
+    <MatSnackbarActions>
+        <MatButton Raised="true" @onclick="UndoDelete">Undo</MatButton>
+    </MatSnackbarActions>
+
+
+</MatSnackbar>
+
+@code {
+    Employee employee = new Employee();
+    Employee selectedEmp = null;
+    Employee TempEmp = null;
+    int _index = -1;
+    bool _isDelete = false;
+    bool dialogIsOpen = false;
+    bool _isEdit = false;
+    bool snackBar = false;
+
+    List<Employee> employees = new List<Employee>()
+    {
+        new Employee(1,"Shakib","Male",Convert.ToDateTime("01-Jan-1995"),4),
+        new Employee(2,"Mukti","Female",Convert.ToDateTime("13-Mar-2000"),2),
+        new Employee(3,"Rohit","Male",Convert.ToDateTime("10-Dec-2004"),3)
+    };
+
+
+    public class Employee
+    {
+        public int EmployeeId { get; set; }
+        public string Name { get; set; }
+        public string Gender { get; set; }
+        public DateTime JoiningDate { get; set; }
+        public int YearOfExperience { get; set; }
+
+        #region Constructors
+        public Employee() { }
+        public Employee(int employeeId,
+                        string name,
+                        string gender,
+                        DateTime joiningDate,
+                        int yearOfExperience)
+        {
+            EmployeeId = employeeId;
+            Name = name;
+            Gender = gender;
+            JoiningDate = joiningDate;
+            YearOfExperience = yearOfExperience;
+        }
+        #endregion
+    }
+
+    #region Methods
+    private void AddEmployee(Employee emp)
+    {
+        emp.EmployeeId = employees.Count + 1;
+        employees.Add(emp);
+    }
+    private void EditEmployee(Employee emp)
+    {
+        if(emp != null && emp.EmployeeId > 0)
+        {
+            int index = employees.FindIndex(a => a.EmployeeId == emp.EmployeeId);
+            employees.RemoveAll(x => x.EmployeeId == emp.EmployeeId);
+            employees.Insert(index, emp);
+        }
+    }
+    private void DeleteEmployee()
+    {
+        _isDelete = true;
+        if (employee != null && employee.EmployeeId > 0)
+        {
+            #region For MarSnackBar
+            _index = employees.FindIndex(a=>a.EmployeeId==employee.EmployeeId);
+            TempEmp = new Employee(employee.EmployeeId,
+                                   employee.Name,
+                                   employee.Gender,
+                                   employee.JoiningDate,
+                                   employee.YearOfExperience);
+            snackBar = true;
+
+            #endregion
+
+            employees.Remove(employee);
+            _isDelete = false;
+            this.StateHasChanged();
+        }
+    }
+    private void UndoDelete()
+    {
+        if(TempEmp != null && _index > 0)
+        {
+            employees.Insert(_index, TempEmp);
+            TempEmp = null;
+            _index = -1;
+        }
+
+    }
+
+    #endregion
+
+    #region Dialog Box Methods
+    private void OpenDialog(bool isEdit)
+    {
+        _isEdit = isEdit;
+        if (!_isEdit) employee = new Employee();
+        dialogIsOpen = true;
+    }
+    private void okClick() //Save Emply Info
+    {
+        dialogIsOpen = false;
+        if (!_isEdit) this.AddEmployee(employee);
+        else this.EditEmployee(employee);
+    }
+    private void CloseDialog()
+    {
+        dialogIsOpen = false;
+        if(selectedEmp !=null)
+        {
+            employee = selectedEmp;
+            this.EditEmployee(selectedEmp);
+        }
+    }
+    private void SelectionChangedEvent(object emp)
+    {
+        var currentEmp = (Employee)emp;
+        if(currentEmp != null)
+        {
+            employee = currentEmp;
+            selectedEmp = new Employee(currentEmp.EmployeeId,
+                                       currentEmp.Name,
+                                       currentEmp.Gender,
+                                       currentEmp.JoiningDate,
+                                       currentEmp.YearOfExperience);
+        }
+        else
+        {
+            selectedEmp = new Employee();
+        }
+
+        if (_isDelete) this.DeleteEmployee();
+    }
+    #endregion
+}
